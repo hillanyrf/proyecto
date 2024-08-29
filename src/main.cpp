@@ -9,10 +9,10 @@ Carnet: 14-10937
 #include <Wire.h>
 
 Servo miServo;
-int pinPulsadorH = 32;  // Cambiar al pin correspondiente
-int pinPulsadorA = 33;
-int pinswPulsador = 12;
-int pinswGiroscopio = 14;
+int pinPulsadorH = 12;  // Cambiar al pin correspondiente
+int pinPulsadorA = 13;
+int pinswPulsador = 34;
+int pinswGiroscopio = 33;
 int estadoPulsadorH = 0;
 int estadoPulsadorA = 0;
 int angulo = 0;
@@ -46,6 +46,7 @@ void setup() {
 void loop() {
 
   if(digitalRead(pinswPulsador) == HIGH){
+    Serial.println("pulsador");
     estadoPulsadorH = digitalRead(pinPulsadorH);
     estadoPulsadorA = digitalRead(pinPulsadorA);
     
@@ -71,6 +72,7 @@ void loop() {
   }
 
   if(digitalRead(pinswGiroscopio) == HIGH){
+  //Serial.println("giroscopio");
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x3B); // Comienza con el registro 0x3B (ACCEL_XOUT_H)
   Wire.endTransmission(false); 
@@ -100,18 +102,19 @@ void loop() {
 
   Serial.println();
 
-  if(accelerometer_x > 10000 && accelerometer_x < 25000){
-    int angulop = map(accelerometer_x, 10000, 25000, 0, 180); // Escalar el valor leido a un rango de 0 a 180
+  if(accelerometer_x > -15900 && accelerometer_x < -1500 && accelerometer_z > -1000 && accelerometer_z < 17600){
+    int angulop = map(accelerometer_z, 17600, -500, 0, 180); // Escalar el valor leido a un rango de 0 a 180
     miServo.write(angulop); // Enviar el valor escalado al servo
     //Serial.print("angulo: ");
     //Serial.println(angulop);
   }
   
-  delay(20);
+  delay(100);
   }
 
   if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW ){
     miServo.write(0);
     delay(15);
+    Serial.println("todo apagado");
   }
 }
