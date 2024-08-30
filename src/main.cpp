@@ -76,7 +76,7 @@ void loop() {
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x3B); // Comienza con el registro 0x3B (ACCEL_XOUT_H)
   Wire.endTransmission(false); 
-  Wire.requestFrom(MPU_ADDR, 14, true); // Solicita un total de 14 registros
+  Wire.requestFrom(MPU_ADDR, 14); // Solicita un total de 14 registros
   
   // Leer datos
   accelerometer_x = Wire.read() << 8 | Wire.read();
