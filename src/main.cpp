@@ -5,17 +5,25 @@ Estudiante: Hillany Rodríguez
 Carnet: 14-10937
 */
 
+#define CUSTOM_SETTINGS
+#define INCLUDE_MOTORCONTROL_MODULE
+#include <DabbleESP32.h>
 #include <ESP32Servo.h>
 #include <Wire.h>
 
 Servo miServo;
 int pinPulsadorH = 12;  // Cambiar al pin correspondiente
 int pinPulsadorA = 13;
-int pinswPulsador = 34;
+int pinswPulsador = 35;
 int pinswGiroscopio = 33;
+int pinswBluetooth = 25;
 int estadoPulsadorH = 0;
 int estadoPulsadorA = 0;
 int angulo = 0;
+int bluenc = 0;
+int contador =0;
+
+uint8_t pinServo1 = 19;
 
 const int MPU_ADDR = 0x68; // Dirección I2C del MPU-6050
 int16_t accelerometer_x, accelerometer_y, accelerometer_z; // Variables para datos crudos del acelerómetro
@@ -35,16 +43,19 @@ void setup() {
   pinMode(pinPulsadorA, INPUT_PULLDOWN);
   pinMode(pinswPulsador, INPUT_PULLDOWN);
   pinMode(pinswGiroscopio, INPUT_PULLDOWN);
+  pinMode(pinswBluetooth, INPUT_PULLDOWN);
   Serial.begin(115200); // Cambiado a 115200 para una mejor velocidad de comunicación
+  
+  //Giroscopio
   Wire.begin(); // Inicializa la comunicación I2C
   Wire.beginTransmission(MPU_ADDR); 
   Wire.write(0x6B); // Registro PWR_MGMT_1
   Wire.write(0); // Configura a cero para despertar el MPU-6050
   Wire.endTransmission(true);
+
 }
 
 void loop() {
-
   if(digitalRead(pinswPulsador) == HIGH){
     Serial.println("pulsador");
     estadoPulsadorH = digitalRead(pinPulsadorH);
@@ -112,7 +123,32 @@ void loop() {
   delay(100);
   }
 
-  if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW ){
+  if(digitalRead(pinswBluetooth) == HIGH && contador == 0){
+    //Bluetooth
+    
+    Dabble.begin("MyEsp32");
+    esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    contador = 1;
+    Serial.println("Begin");
+  }
+
+  if(digitalRead(pinswBluetooth) == HIGH){
+    Serial.println("Bluetooth dabble");
+    Dabble.processInput(); //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.              //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.
+    Controls.runServo1(pinServo1);
+    bluenc=1;
+  }
+
+  //detener el bluetooth
+  if(digitalRead(pinswBluetooth) == LOW && bluenc == 1){
+    Serial.println("Bluetooth stop");
+    esp32ble.stop();
+    bluenc = 0;
+    contador = 0;
+    //freeMemoryAllocated(); revisar
+  }
+
+  if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW && digitalRead(pinswBluetooth) == LOW ){
     miServo.write(0);
     delay(15);
     Serial.println("todo apagado");
