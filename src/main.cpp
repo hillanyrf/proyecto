@@ -47,12 +47,11 @@ void setup() {
   Serial.begin(115200); // Cambiado a 115200 para una mejor velocidad de comunicación
   
   //Giroscopio
-  Wire.begin(); // Inicializa la comunicación I2C
+  Wire.begin(15,4); // Inicializa la comunicación I2C
   Wire.beginTransmission(MPU_ADDR); 
   Wire.write(0x6B); // Registro PWR_MGMT_1
   Wire.write(0); // Configura a cero para despertar el MPU-6050
   Wire.endTransmission(true);
-
 }
 
 void loop() {
