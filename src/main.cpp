@@ -10,18 +10,23 @@ Carnet: 14-10937
 #include <DabbleESP32.h>
 #include <ESP32Servo.h>
 #include <Wire.h>
+#include <WiFi.h>
 
 Servo miServo;
 int pinPulsadorH = 12;  // Cambiar al pin correspondiente
 int pinPulsadorA = 13;
-int pinswPulsador = 35;
-int pinswGiroscopio = 33;
-int pinswBluetooth = 25;
+int pinswPulsador = 34;
+int pinswGiroscopio = 21;
+int pinswBluetooth = 33;
+int pinswWifi = 17;
 int estadoPulsadorH = 0;
 int estadoPulsadorA = 0;
 int angulo = 0;
 int bluenc = 0;
 int contador =0;
+
+int contador1 =0;
+int contador2 =0;
 
 uint8_t pinServo1 = 19;
 
@@ -37,6 +42,12 @@ char* convert_int16_to_str(int16_t i) {
   return tmp_str;
 }
 
+//wifi
+const char* ssid = "Soulstealer";          // Reemplaza con tu SSID.
+const char* password = "Julio26O57776";  // Reemplaza con tu contraseña.
+
+WiFiServer server(80);  // Crea un servidor en el puerto 80.
+
 void setup() {
   miServo.attach(19);  // Cambiar al pin correspondiente
   pinMode(pinPulsadorH, INPUT_PULLDOWN);
@@ -44,6 +55,7 @@ void setup() {
   pinMode(pinswPulsador, INPUT_PULLDOWN);
   pinMode(pinswGiroscopio, INPUT_PULLDOWN);
   pinMode(pinswBluetooth, INPUT_PULLDOWN);
+  pinMode(pinswWifi, INPUT_PULLDOWN);
   Serial.begin(115200); // Cambiado a 115200 para una mejor velocidad de comunicación
   
   //Giroscopio
@@ -52,9 +64,15 @@ void setup() {
   Wire.write(0x6B); // Registro PWR_MGMT_1
   Wire.write(0); // Configura a cero para despertar el MPU-6050
   Wire.endTransmission(true);
+
+  //wifi
+  //pinMode(pinServo1, OUTPUT);
+    
+  miServo.write(0);
 }
 
 void loop() {
+    //Pulsador
   if(digitalRead(pinswPulsador) == HIGH){
     Serial.println("pulsador");
     estadoPulsadorH = digitalRead(pinPulsadorH);
@@ -79,8 +97,9 @@ void loop() {
       miServo.write(angulo);
       delay(15); 
     }
-  }
+  }//fin pulsador
 
+//Giroscopio
   if(digitalRead(pinswGiroscopio) == HIGH){
   //Serial.println("giroscopio");
   Wire.beginTransmission(MPU_ADDR);
@@ -120,10 +139,10 @@ void loop() {
   }
   
   delay(100);
-  }
+  }//fin giroscopio
 
+//bluetooth
   if(digitalRead(pinswBluetooth) == HIGH && contador == 0){
-    //Bluetooth
     
     Dabble.begin("MyEsp32");
     esp_bt_controller_enable(ESP_BT_MODE_BLE);
@@ -145,9 +164,103 @@ void loop() {
     bluenc = 0;
     contador = 0;
     //freeMemoryAllocated(); revisar
-  }
+  }//fin bluetooth
 
-  if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW && digitalRead(pinswBluetooth) == LOW ){
+    //wifi
+    //comenzar a conectar
+    if(digitalRead(pinswWifi) == HIGH && contador1 == 0 && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW){
+    WiFi.begin(ssid, password);  // Conéctate a la red Wi-Fi.
+
+    // Espera hasta que esté conectado
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+
+    Serial.println("\nConectado a la red Wi-Fi");
+    Serial.print("Dirección IP: ");
+    Serial.println(WiFi.localIP());  // Imprime la IP local asignada al ESP
+
+    server.begin();  // Comienza el servidor
+    contador1=1; //se encendio
+}
+//Mantener wifi
+
+  if(contador1 == 1 && digitalRead(pinswWifi) == HIGH && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW){
+    
+    WiFiClient client = server.available();  // Verifica si hay un cliente conectado.
+
+    if (client) {
+        Serial.println("Nuevo cliente conectado");
+        String request = "";      // Para almacenar la solicitud completa.
+
+        while (client.connected() || client.available()) {
+            if (client.available()) {
+            char c = client.read();  // Lee un carácter del cliente.
+            request += c;           // Agrega el carácter a la solicitud completa.
+
+            Serial.write(c);  // Imprime el carácter recibido en la consola.
+
+            // Cuando se encuentra una nueva línea, verifica si es una solicitud GET.
+            if (c == '\n') {
+                if (request.indexOf("GET /") != -1) {
+                    // Envía una respuesta HTTP.
+                    client.println("HTTP/1.1 200 OK");
+                    client.println("Content-type: text/html");
+                    client.println("Connection: close");
+                    client.println();
+
+                    // Envía la página HTML.
+                    client.println("<!DOCTYPE html>");
+                    client.println("<html>");
+                    client.println("<body>");
+                    client.println("<h1>Enviar un numero</h1>");
+                    client.println("<form action=\"/\" method=\"GET\">");
+                    client.println("Numero: <input type=\"number\" name=\"number\">");
+                    client.println("<input type=\"submit\" value=\"Enviar\">");
+                    client.println("</form>");
+
+                    // Si se recibe una solicitud GET con un número, imprímelo en la consola.
+                    int index = request.indexOf("GET /?number=");
+                    if (index != -1) {
+                        int startIndex = index + 13;  // Longitud de "GET /?number=" es 13.
+                        int endIndex = request.indexOf(' ', startIndex);
+                        if (endIndex == -1) endIndex = request.length();
+                            String number = request.substring(startIndex, endIndex);
+                            Serial.print("Numero recibido: ");
+                            Serial.println(number);
+                            delay(1000);
+                            int numberInt = number.toInt();
+                            miServo.write(numberInt);
+                        }
+
+                        client.println("</body>");
+                        client.println("</html>");
+                        break;
+                    } else {
+                        request = "";  // Reinicia la solicitud actual si no es una solicitud GET.
+                    }
+                }
+            }
+        }
+
+        delay(1);
+        client.stop();
+        Serial.println("Cliente desconectado");
+    }
+    contador2=1; //entro en mantener
+  }//fin wifi
+  
+//cerrar wifi
+  if(digitalRead(pinswWifi) == LOW && contador2==1){
+    WiFi.disconnect();
+    contador1 = 0;
+    contador2 = 0;
+    Serial.println("Wifi desconectado.");
+    }
+
+  //todo apagado
+  if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswWifi) == LOW ){
     miServo.write(0);
     delay(15);
     Serial.println("todo apagado");
