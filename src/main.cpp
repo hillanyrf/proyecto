@@ -15,10 +15,15 @@ Carnet: 14-10937
 Servo miServo;
 int pinPulsadorH = 12;  // Cambiar al pin correspondiente
 int pinPulsadorA = 13;
+const int sensorPin = 27;
+
+//switchs
 int pinswPulsador = 34;
 int pinswGiroscopio = 21;
 int pinswBluetooth = 33;
 int pinswWifi = 17;
+int pinswSensor = 32;
+
 int estadoPulsadorH = 0;
 int estadoPulsadorA = 0;
 int angulo = 0;
@@ -30,6 +35,15 @@ int contador2 =0;
 
 uint8_t pinServo1 = 19;
 
+//Sensor muscular
+const int numReadings = 10; // Número de lecturas para promediar
+float readings[numReadings]; // Arreglo para almacenar las lecturas
+int indice = 0; // Índice para la siguiente lectura
+float total = 0; // Suma total de las lecturas
+float average = 0; // Promedio
+int cont3 = 0;
+
+//MPU
 const int MPU_ADDR = 0x68; // Dirección I2C del MPU-6050
 int16_t accelerometer_x, accelerometer_y, accelerometer_z; // Variables para datos crudos del acelerómetro
 int16_t gyro_x, gyro_y, gyro_z; // Variables para datos crudos del giroscopio
@@ -56,6 +70,7 @@ void setup() {
   pinMode(pinswGiroscopio, INPUT_PULLDOWN);
   pinMode(pinswBluetooth, INPUT_PULLDOWN);
   pinMode(pinswWifi, INPUT_PULLDOWN);
+  pinMode(pinswSensor, INPUT_PULLDOWN);
   Serial.begin(115200); // Cambiado a 115200 para una mejor velocidad de comunicación
   
   //Giroscopio
@@ -65,9 +80,6 @@ void setup() {
   Wire.write(0); // Configura a cero para despertar el MPU-6050
   Wire.endTransmission(true);
 
-  //wifi
-  //pinMode(pinServo1, OUTPUT);
-    
   miServo.write(0);
 }
 
@@ -141,7 +153,7 @@ void loop() {
   delay(100);
   }//fin giroscopio
 
-//bluetooth
+//Bluetooth
   if(digitalRead(pinswBluetooth) == HIGH && contador == 0){
     
     Dabble.begin("MyEsp32");
@@ -166,7 +178,7 @@ void loop() {
     //freeMemoryAllocated(); revisar
   }//fin bluetooth
 
-    //wifi
+    //Wifi
     //comenzar a conectar
     if(digitalRead(pinswWifi) == HIGH && contador1 == 0 && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW){
     WiFi.begin(ssid, password);  // Conéctate a la red Wi-Fi.
@@ -259,10 +271,54 @@ void loop() {
     Serial.println("Wifi desconectado.");
     }
 
+//Sensor
+
+if(digitalRead(pinswSensor)== HIGH){
+
+    if(digitalRead(pinswSensor) == HIGH && cont3==0){
+      //correr solo una vez cada vez que se encienda el interruptor
+      // Inicializar el arreglo de lecturas
+      for (int i = 0; i < numReadings; i++) {
+      readings[i] = 0;
+      }
+      cont3=1;
+    }
+
+    // Restar la lectura más antigua de la suma total
+    total -= readings[indice];
+  
+    // Leer el nuevo valor del sensor
+    readings[indice] = analogRead(sensorPin);
+  
+    // Sumar la nueva lectura al total
+    total += readings[indice];
+  
+    // Avanzar al siguiente índice
+    indice = (indice + 1) % numReadings; // Volver al inicio si se llega al final
+  
+    // Calcular el promedio
+    average = total / numReadings;
+
+    Serial.print("Promedio de las últimas 15 lecturas: ");
+    Serial.println(average);
+
+    if(average < 600){
+    miServo.write(90);
+    }
+
+    if(average > 600){
+      miServo.write(0);
+    }
+
+    delay(100);
+
+  }
+
   //todo apagado
-  if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswWifi) == LOW ){
+  if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswWifi) == LOW && digitalRead(pinswSensor) == LOW){
     miServo.write(0);
     delay(15);
     Serial.println("todo apagado");
+    cont3=0;
   }
 }
