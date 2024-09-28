@@ -11,18 +11,21 @@ Carnet: 14-10937
 #include <ESP32Servo.h>
 #include <Wire.h>
 #include <WiFi.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <Keypad.h>
 
 Servo miServo;
 int pinPulsadorH = 12;  // Cambiar al pin correspondiente
 int pinPulsadorA = 13;
-const int sensorPin = 27;
+const int sensorPin = 34;
 
 //switchs
-int pinswPulsador = 34;
-int pinswGiroscopio = 21;
+int pinswPulsador = 32;
+int pinswGiroscopio = 35;
 int pinswBluetooth = 33;
-int pinswWifi = 17;
-int pinswSensor = 32;
+int pinswWifi = 25;
+int pinswSensor = 26;
 
 int estadoPulsadorH = 0;
 int estadoPulsadorA = 0;
@@ -33,7 +36,7 @@ int contador =0;
 int contador1 =0;
 int contador2 =0;
 
-uint8_t pinServo1 = 19;
+uint8_t pinServo1 = 23;
 
 //Sensor muscular
 const int numReadings = 10; // Número de lecturas para promediar
@@ -56,21 +59,79 @@ char* convert_int16_to_str(int16_t i) {
   return tmp_str;
 }
 
+
 //wifi
 const char* ssid = "Soulstealer";          // Reemplaza con tu SSID.
 const char* password = "Julio26O57776";  // Reemplaza con tu contraseña.
 
 WiFiServer server(80);  // Crea un servidor en el puerto 80.
 
+//Pantalla
+
+// Definir el tamaño de la pantalla
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+// Definir la dirección I2C (la dirección predeterminada suele ser 0x3C)
+#define OLED_RESET -1  // No es necesario para este modelo específico
+
+// Crear una instancia del objeto SSD1306
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// Variable que se mostrará en la pantalla
+int grado = 0;  // Inicia en 0
+int estado = 0; // Inicializar en 0 para indicar que no hay selección
+
+// Configuración del teclado
+const byte ROWS = 3; 
+const byte COLS = 2; 
+
+char keys[ROWS][COLS] = {
+  {'2', '3'},
+  {'5', '6'},
+  {'8', '9'}
+};
+
+byte rowPins[ROWS] = {19, 18, 5}; // Conectar filas a los pines 27, 26 y 25
+byte colPins[COLS] = {17, 16}; // Conectar columnas a los pines 12 y 33
+
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+
+
+void actualizarDisplay() {
+  display.clearDisplay();
+  
+  // Mostrar el número
+  display.setTextSize(4);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 30);
+  display.print(grado);
+  
+  // Mostrar la opción seleccionada
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  if (estado > 0) {
+    display.print(F("Opcion "));
+    display.print(estado);
+  } else {
+    display.print(F("No se ha seleccionado ninguna opcio0n"));
+  }
+
+  display.display(); // Renderizar la pantalla
+}
+
+
 void setup() {
-  miServo.attach(19);  // Cambiar al pin correspondiente
+  miServo.attach(23);  // Cambiar al pin correspondiente
   pinMode(pinPulsadorH, INPUT_PULLDOWN);
   pinMode(pinPulsadorA, INPUT_PULLDOWN);
+  
   pinMode(pinswPulsador, INPUT_PULLDOWN);
   pinMode(pinswGiroscopio, INPUT_PULLDOWN);
   pinMode(pinswBluetooth, INPUT_PULLDOWN);
   pinMode(pinswWifi, INPUT_PULLDOWN);
   pinMode(pinswSensor, INPUT_PULLDOWN);
+
   Serial.begin(115200); // Cambiado a 115200 para una mejor velocidad de comunicación
   
   //Giroscopio
@@ -81,6 +142,25 @@ void setup() {
   Wire.endTransmission(true);
 
   miServo.write(0);
+
+  //Pantalla OLED
+  // Inicializar I2C con los pines personalizados
+  Wire.begin(21, 22);
+  
+  // Inicializar la pantalla OLED
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("No se encuentra la pantalla SSD1306"));
+    while (true);
+  }
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print(F("Presione 2,3,5,6,8 o 9:"));
+  display.display();
+
+  //teclado
+
 }
 
 void loop() {
@@ -321,4 +401,25 @@ if(digitalRead(pinswSensor)== HIGH){
     Serial.println("todo apagado");
     cont3=0;
   }
+
+   char key = keypad.getKey(); // Leer la tecla presionada
+  if (key) { // Si se presiona una tecla
+    if (key >= '2' && key <= '9') {
+      estado = key - '0'; // Convertir carácter a número
+      grado = 0; // Reiniciar el número
+    } else {
+      Serial.println(F("Número invalido. Ingrese 2, 3, 5, 6, 8 o 9."));
+    }
+  }
+
+  // Actualizar el número si un estado es válido
+  if (estado > 0) {
+    grado = (grado + 1) % 181; // Incrementar y envolver en 181
+  }
+
+  actualizarDisplay(); // Actualizar la pantalla
+  delay(100); // Ajustar este retardo según sea necesario
+  
 }
+
+
