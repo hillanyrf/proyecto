@@ -76,7 +76,7 @@ WiFiServer server(80);  // Crea un servidor en el puerto 80.
 #define OLED_RESET -1  // No es necesario para este modelo específico
 
 // Crear una instancia del objeto SSD1306
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, OLED_RESET);
 
 // Variable que se mostrará en la pantalla
 int grado = 0;  // Inicia en 0
@@ -145,7 +145,7 @@ void setup() {
 
   //Pantalla OLED
   // Inicializar I2C con los pines personalizados
-  Wire.begin(21, 22);
+  Wire1.begin(21, 22);
   
   // Inicializar la pantalla OLED
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
@@ -191,7 +191,7 @@ void loop() {
     }
   }//fin pulsador
 
-//Giroscopio
+  //Giroscopio
   if(digitalRead(pinswGiroscopio) == HIGH){
   //Serial.println("giroscopio");
   Wire.beginTransmission(MPU_ADDR);
@@ -233,7 +233,7 @@ void loop() {
   delay(100);
   }//fin giroscopio
 
-//Bluetooth
+  //Bluetooth
   if(digitalRead(pinswBluetooth) == HIGH && contador == 0){
     
     Dabble.begin("MyEsp32");
@@ -275,8 +275,8 @@ void loop() {
 
     server.begin();  // Comienza el servidor
     contador1=1; //se encendio
-}
-//Mantener wifi
+  } 
+  //Mantener wifi
 
   if(contador1 == 1 && digitalRead(pinswWifi) == HIGH && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW){
     
@@ -343,7 +343,7 @@ void loop() {
     contador2=1; //entro en mantener
   }//fin wifi
   
-//cerrar wifi
+  //cerrar wifi
   if(digitalRead(pinswWifi) == LOW && contador2==1){
     WiFi.disconnect();
     contador1 = 0;
@@ -351,9 +351,9 @@ void loop() {
     Serial.println("Wifi desconectado.");
     }
 
-//Sensor
+  //Sensor
 
-if(digitalRead(pinswSensor)== HIGH){
+  if(digitalRead(pinswSensor)== HIGH){
 
     if(digitalRead(pinswSensor) == HIGH && cont3==0){
       //correr solo una vez cada vez que se encienda el interruptor
