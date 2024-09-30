@@ -19,13 +19,14 @@ Servo miServo;
 int pinPulsadorH = 12;  // Cambiar al pin correspondiente
 int pinPulsadorA = 13;
 const int sensorPin = 34;
-
+/*
 //switchs
 int pinswPulsador = 32;
 int pinswGiroscopio = 35;
 int pinswBluetooth = 33;
 int pinswWifi = 25;
 int pinswSensor = 26;
+*/
 
 int estadoPulsadorH = 0;
 int estadoPulsadorA = 0;
@@ -48,16 +49,9 @@ int cont3 = 0;
 
 //MPU
 const int MPU_ADDR = 0x68; // Dirección I2C del MPU-6050
-int16_t accelerometer_x, accelerometer_y, accelerometer_z; // Variables para datos crudos del acelerómetro
-int16_t gyro_x, gyro_y, gyro_z; // Variables para datos crudos del giroscopio
-int16_t temperature; // Variable para datos de temperatura
-char tmp_str[7]; // Variable temporal usada en la función de conversión
-
-// Función para convertir int16 a string
-char* convert_int16_to_str(int16_t i) {
-  sprintf(tmp_str, "%6d", i);
-  return tmp_str;
-}
+int16_t accelerometer_x; // Variables para datos crudos del acelerómetro
+float filtered_x = 0; // Variable para la lectura filtrada
+const float alpha = 0.1; // Factor de suavizado
 
 
 //wifi
@@ -67,7 +61,8 @@ const char* password = "Julio26O57776";  // Reemplaza con tu contraseña.
 WiFiServer server(80);  // Crea un servidor en el puerto 80.
 
 //Pantalla
-
+//string textoestado
+char* textoestado;
 // Definir el tamaño de la pantalla
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -105,16 +100,16 @@ void actualizarDisplay() {
   display.setTextSize(4);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 30);
-  display.print(grado);
+  display.print(angulo);
   
   // Mostrar la opción seleccionada
   display.setTextSize(1);
   display.setCursor(0, 0);
   if (estado > 0) {
     display.print(F("Opcion "));
-    display.print(estado);
+    display.print(textoestado);
   } else {
-    display.print(F("No se ha seleccionado ninguna opcio0n"));
+    display.print(F("No se ha seleccionado ninguna opcion"));
   }
 
   display.display(); // Renderizar la pantalla
@@ -125,12 +120,14 @@ void setup() {
   miServo.attach(23);  // Cambiar al pin correspondiente
   pinMode(pinPulsadorH, INPUT_PULLDOWN);
   pinMode(pinPulsadorA, INPUT_PULLDOWN);
-  
+
+  /*
   pinMode(pinswPulsador, INPUT_PULLDOWN);
   pinMode(pinswGiroscopio, INPUT_PULLDOWN);
   pinMode(pinswBluetooth, INPUT_PULLDOWN);
   pinMode(pinswWifi, INPUT_PULLDOWN);
   pinMode(pinswSensor, INPUT_PULLDOWN);
+  */
 
   Serial.begin(115200); // Cambiado a 115200 para una mejor velocidad de comunicación
   
@@ -164,8 +161,19 @@ void setup() {
 }
 
 void loop() {
+
+  char key = keypad.getKey(); // Leer la tecla presionada
+  if (key) { // Si se presiona una tecla
+    if (key >= '2' && key <= '9') {
+      estado = key - '0'; // Convertir carácter a número
+    } else {
+      Serial.println(F("Número invalido. Ingrese 2, 3, 5, 6, 8 o 9."));
+    }
+  }
+
     //Pulsador
-  if(digitalRead(pinswPulsador) == HIGH){
+  if(estado == 2){
+    textoestado = "Pulsador";
     Serial.println("pulsador");
     estadoPulsadorH = digitalRead(pinPulsadorH);
     estadoPulsadorA = digitalRead(pinPulsadorA);
@@ -192,49 +200,29 @@ void loop() {
   }//fin pulsador
 
   //Giroscopio
-  if(digitalRead(pinswGiroscopio) == HIGH){
-  //Serial.println("giroscopio");
+  if(estado == 3){
+  textoestado = "Giroscopio";
   Wire.beginTransmission(MPU_ADDR);
-  Wire.write(0x3B); // Comienza con el registro 0x3B (ACCEL_XOUT_H)
-  Wire.endTransmission(false); 
-  Wire.requestFrom(MPU_ADDR, 14); // Solicita un total de 14 registros
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_ADDR, 14, true);
   
   // Leer datos
   accelerometer_x = Wire.read() << 8 | Wire.read();
-  accelerometer_y = Wire.read() << 8 | Wire.read();
-  accelerometer_z = Wire.read() << 8 | Wire.read();
-  temperature = Wire.read() << 8 | Wire.read();
-  gyro_x = Wire.read() << 8 | Wire.read();
-  gyro_y = Wire.read() << 8 | Wire.read();
-  gyro_z = Wire.read() << 8 | Wire.read();
   
-  // Imprimir datos
-  Serial.print(convert_int16_to_str(accelerometer_x));Serial.print(","); 
-  Serial.print(convert_int16_to_str(accelerometer_y));Serial.print(","); 
-  Serial.print(convert_int16_to_str(accelerometer_z));
-  
-  //Serial.print(convert_int16_to_str(gyro_z)); Serial.print(",");
-  //Serial.print(convert_int16_to_str(gyro_y)); Serial.print(",");
-  //Serial.print(convert_int16_to_str(gyro_x));
+  // Aplicar filtro exponencial
+  filtered_x = alpha * accelerometer_x + (1 - alpha) * filtered_x;
 
-  //Serial.print(accelerometer_x);Serial.print(","); 
-  //Serial.print(accelerometer_y);Serial.print(","); 
-  //Serial.print(accelerometer_z);
-
-  Serial.println();
-
-  if(accelerometer_x > -15900 && accelerometer_x < -1500 && accelerometer_z > -1000 && accelerometer_z < 17600){
-    int angulop = map(accelerometer_z, 17600, -500, 0, 180); // Escalar el valor leido a un rango de 0 a 180
-    miServo.write(angulop); // Enviar el valor escalado al servo
-    //Serial.print("angulo: ");
-    //Serial.println(angulop);
+  if(filtered_x > 10000 && filtered_x < 25000) {
+    int angulop = map(filtered_x, 10000, 17000, 0, 180);
+    miServo.write(angulop);
   }
   
-  delay(100);
+  delay(20);
   }//fin giroscopio
 
   //Bluetooth
-  if(digitalRead(pinswBluetooth) == HIGH && contador == 0){
+  if(estado == 5 && contador == 0){
     
     Dabble.begin("MyEsp32");
     esp_bt_controller_enable(ESP_BT_MODE_BLE);
@@ -242,7 +230,8 @@ void loop() {
     Serial.println("Begin");
   }
 
-  if(digitalRead(pinswBluetooth) == HIGH){
+  if(estado == 5){
+    textoestado = "Bluetooth";
     Serial.println("Bluetooth dabble");
     Dabble.processInput(); //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.              //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.
     Controls.runServo1(pinServo1);
@@ -250,7 +239,7 @@ void loop() {
   }
 
   //detener el bluetooth
-  if(digitalRead(pinswBluetooth) == LOW && bluenc == 1){
+  if(estado != 5 && bluenc == 1){
     Serial.println("Bluetooth stop");
     esp32ble.stop();
     bluenc = 0;
@@ -260,7 +249,8 @@ void loop() {
 
     //Wifi
     //comenzar a conectar
-    if(digitalRead(pinswWifi) == HIGH && contador1 == 0 && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW){
+    if(estado == 6 && contador1 == 0){
+      textoestado = "Wi-Fi";
     WiFi.begin(ssid, password);  // Conéctate a la red Wi-Fi.
 
     // Espera hasta que esté conectado
@@ -278,7 +268,7 @@ void loop() {
   } 
   //Mantener wifi
 
-  if(contador1 == 1 && digitalRead(pinswWifi) == HIGH && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW){
+  if(contador1 == 1 && estado == 6){
     
     WiFiClient client = server.available();  // Verifica si hay un cliente conectado.
 
@@ -344,7 +334,7 @@ void loop() {
   }//fin wifi
   
   //cerrar wifi
-  if(digitalRead(pinswWifi) == LOW && contador2==1){
+  if(estado != 6 && contador2==1){
     WiFi.disconnect();
     contador1 = 0;
     contador2 = 0;
@@ -353,9 +343,9 @@ void loop() {
 
   //Sensor
 
-  if(digitalRead(pinswSensor)== HIGH){
-
-    if(digitalRead(pinswSensor) == HIGH && cont3==0){
+  if(estado == 8){
+    textoestado = "Sensor";
+    if(estado == 8 && cont3==0){
       //correr solo una vez cada vez que se encienda el interruptor
       // Inicializar el arreglo de lecturas
       for (int i = 0; i < numReadings; i++) {
@@ -391,17 +381,17 @@ void loop() {
     }
 
     delay(100);
-
   }
 
   //todo apagado
-  if(digitalRead(pinswPulsador) == LOW && digitalRead(pinswGiroscopio) == LOW && digitalRead(pinswBluetooth) == LOW && digitalRead(pinswWifi) == LOW && digitalRead(pinswSensor) == LOW){
+  if(estado == 9){
+    textoestado = "Todo apagado";
     miServo.write(0);
     delay(15);
     Serial.println("todo apagado");
     cont3=0;
   }
-
+/*
    char key = keypad.getKey(); // Leer la tecla presionada
   if (key) { // Si se presiona una tecla
     if (key >= '2' && key <= '9') {
@@ -416,10 +406,9 @@ void loop() {
   if (estado > 0) {
     grado = (grado + 1) % 181; // Incrementar y envolver en 181
   }
+*/
 
   actualizarDisplay(); // Actualizar la pantalla
   delay(100); // Ajustar este retardo según sea necesario
   
 }
-
-
