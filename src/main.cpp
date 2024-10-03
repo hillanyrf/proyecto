@@ -19,6 +19,8 @@ Servo miServo;
 int pinPulsadorH = 12;  // Cambiar al pin correspondiente
 int pinPulsadorA = 13;
 const int sensorPin = 34;
+int mostrarangulo = 0;
+
 /*
 //switchs
 int pinswPulsador = 32;
@@ -37,7 +39,7 @@ int contador =0;
 int contador1 =0;
 int contador2 =0;
 
-uint8_t pinServo1 = 23;
+//uint8_t pinServo1 = 23;
 
 //Sensor muscular
 const int numReadings = 10; // Número de lecturas para promediar
@@ -52,7 +54,6 @@ const int MPU_ADDR = 0x68; // Dirección I2C del MPU-6050
 int16_t accelerometer_x; // Variables para datos crudos del acelerómetro
 float filtered_x = 0; // Variable para la lectura filtrada
 const float alpha = 0.1; // Factor de suavizado
-
 
 //wifi
 const char* ssid = "Soulstealer";          // Reemplaza con tu SSID.
@@ -100,7 +101,7 @@ void actualizarDisplay() {
   display.setTextSize(4);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 30);
-  display.print(angulo);
+  display.print(mostrarangulo);
   
   // Mostrar la opción seleccionada
   display.setTextSize(1);
@@ -163,15 +164,17 @@ void setup() {
 void loop() {
 
   char key = keypad.getKey(); // Leer la tecla presionada
-  if (key) { // Si se presiona una tecla
+
+if (key) { // Si se presiona una tecla
     if (key >= '2' && key <= '9') {
       estado = key - '0'; // Convertir carácter a número
     } else {
+      estado = 0;
       Serial.println(F("Número invalido. Ingrese 2, 3, 5, 6, 8 o 9."));
     }
   }
 
-    //Pulsador
+  //Pulsador
   if(estado == 2){
     textoestado = "Pulsador";
     Serial.println("pulsador");
@@ -184,8 +187,9 @@ void loop() {
       } else {
           angulo = 180;
         }
+      mostrarangulo = angulo;
       miServo.write(angulo);
-      delay(15);  // Ajustar la velocidad del movimiento del servo según sea necesario
+      delay(5);  // Ajustar la velocidad del movimiento del servo según sea necesario
     }
 
     if (estadoPulsadorH == LOW && estadoPulsadorA == HIGH) {
@@ -194,8 +198,10 @@ void loop() {
       } else {
           angulo = 0;
         }
+        
+      mostrarangulo = angulo;
       miServo.write(angulo);
-      delay(15); 
+      delay(5); 
     }
   }//fin pulsador
 
@@ -215,6 +221,7 @@ void loop() {
 
   if(filtered_x > 10000 && filtered_x < 25000) {
     int angulop = map(filtered_x, 10000, 17000, 0, 180);
+    mostrarangulo = angulop;
     miServo.write(angulop);
   }
   
@@ -234,8 +241,9 @@ void loop() {
     textoestado = "Bluetooth";
     Serial.println("Bluetooth dabble");
     Dabble.processInput(); //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.              //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.
-    Controls.runServo1(pinServo1);
+    Controls.runServo1(23);
     bluenc=1;
+    mostrarangulo = Controls.angleServo1;
   }
 
   //detener el bluetooth
@@ -244,6 +252,7 @@ void loop() {
     esp32ble.stop();
     bluenc = 0;
     contador = 0;
+    miServo.attach(23);
     //freeMemoryAllocated(); revisar
   }//fin bluetooth
 
@@ -251,7 +260,7 @@ void loop() {
     //comenzar a conectar
     if(estado == 6 && contador1 == 0){
       textoestado = "Wi-Fi";
-    WiFi.begin(ssid, password);  // Conéctate a la red Wi-Fi.
+    WiFi.begin(ssid, password);  // Conéctate a la red Wi-Fi
 
     // Espera hasta que esté conectado
     while (WiFi.status() != WL_CONNECTED) {
@@ -262,6 +271,7 @@ void loop() {
     Serial.println("\nConectado a la red Wi-Fi");
     Serial.print("Dirección IP: ");
     Serial.println(WiFi.localIP());  // Imprime la IP local asignada al ESP
+    //falta imprimir esto en la pantalla
 
     server.begin();  // Comienza el servidor
     contador1=1; //se encendio
@@ -313,6 +323,7 @@ void loop() {
                             Serial.println(number);
                             delay(1000);
                             int numberInt = number.toInt();
+                            mostrarangulo = numberInt;
                             miServo.write(numberInt);
                         }
 
@@ -374,10 +385,12 @@ void loop() {
 
     if(average < 600){
     miServo.write(90);
+    mostrarangulo = 90;
     }
 
     if(average > 600){
       miServo.write(0);
+      mostrarangulo = 0;
     }
 
     delay(100);
@@ -390,25 +403,8 @@ void loop() {
     delay(15);
     Serial.println("todo apagado");
     cont3=0;
+    mostrarangulo = 0;
   }
-/*
-   char key = keypad.getKey(); // Leer la tecla presionada
-  if (key) { // Si se presiona una tecla
-    if (key >= '2' && key <= '9') {
-      estado = key - '0'; // Convertir carácter a número
-      grado = 0; // Reiniciar el número
-    } else {
-      Serial.println(F("Número invalido. Ingrese 2, 3, 5, 6, 8 o 9."));
-    }
-  }
-
-  // Actualizar el número si un estado es válido
-  if (estado > 0) {
-    grado = (grado + 1) % 181; // Incrementar y envolver en 181
-  }
-*/
 
   actualizarDisplay(); // Actualizar la pantalla
-  delay(100); // Ajustar este retardo según sea necesario
-  
 }
