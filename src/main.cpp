@@ -109,6 +109,10 @@ void actualizarDisplay() {
   if (estado > 0) {
     display.print(F("Opcion "));
     display.print(textoestado);
+    if(estado == 6){
+      display.print("\nIP: " ); 
+      display.print(WiFi.localIP());
+    }
   } else {
     display.print(F("No se ha seleccionado ninguna opcion"));
   }
