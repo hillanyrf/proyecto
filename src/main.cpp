@@ -16,20 +16,14 @@ Carnet: 14-10937
 #include <Keypad.h>
 
 Servo miServo;
-int pinPulsadorH = 12;  // Cambiar al pin correspondiente
+
+//Pines
+int pinPulsadorH = 12; 
 int pinPulsadorA = 13;
 const int sensorPin = 34;
+
+//Variables
 int mostrarangulo = 0;
-
-/*
-//switchs
-int pinswPulsador = 32;
-int pinswGiroscopio = 35;
-int pinswBluetooth = 33;
-int pinswWifi = 25;
-int pinswSensor = 26;
-*/
-
 int estadoPulsadorH = 0;
 int estadoPulsadorA = 0;
 int angulo = 0;
@@ -38,8 +32,6 @@ int contador =0;
 
 int contador1 =0;
 int contador2 =0;
-
-//uint8_t pinServo1 = 23;
 
 //Sensor muscular
 const int numReadings = 10; // Número de lecturas para promediar
@@ -55,13 +47,14 @@ int16_t accelerometer_x; // Variables para datos crudos del acelerómetro
 float filtered_x = 0; // Variable para la lectura filtrada
 const float alpha = 0.1; // Factor de suavizado
 
-//wifi
+//Wi-Fi
 const char* ssid = "Soulstealer";          // Reemplaza con tu SSID.
 const char* password = "Julio26O57776";  // Reemplaza con tu contraseña.
 
 WiFiServer server(80);  // Crea un servidor en el puerto 80.
 
 //Pantalla
+
 //string textoestado
 char* textoestado;
 // Definir el tamaño de la pantalla
@@ -78,7 +71,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, OLED_RESET);
 int grado = 0;  // Inicia en 0
 int estado = 0; // Inicializar en 0 para indicar que no hay selección
 
-// Configuración del teclado
+// Teclado 4x4
+
 const byte ROWS = 3; 
 const byte COLS = 2; 
 
@@ -93,7 +87,7 @@ byte colPins[COLS] = {17, 16}; // Conectar columnas a los pines 12 y 33
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
-
+//Pantalla
 void actualizarDisplay() {
   display.clearDisplay();
   
@@ -120,19 +114,10 @@ void actualizarDisplay() {
   display.display(); // Renderizar la pantalla
 }
 
-
 void setup() {
-  miServo.attach(23);  // Cambiar al pin correspondiente
+  miServo.attach(23); 
   pinMode(pinPulsadorH, INPUT_PULLDOWN);
   pinMode(pinPulsadorA, INPUT_PULLDOWN);
-
-  /*
-  pinMode(pinswPulsador, INPUT_PULLDOWN);
-  pinMode(pinswGiroscopio, INPUT_PULLDOWN);
-  pinMode(pinswBluetooth, INPUT_PULLDOWN);
-  pinMode(pinswWifi, INPUT_PULLDOWN);
-  pinMode(pinswSensor, INPUT_PULLDOWN);
-  */
 
   Serial.begin(115200); // Cambiado a 115200 para una mejor velocidad de comunicación
   
@@ -146,30 +131,28 @@ void setup() {
   miServo.write(0);
 
   //Pantalla OLED
-  // Inicializar I2C con los pines personalizados
+  //Inicializar I2C con los pines personalizados
   Wire1.begin(21, 22);
   
-  // Inicializar la pantalla OLED
+  //Inicializar la pantalla OLED
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("No se encuentra la pantalla SSD1306"));
     while (true);
   }
 
+  //Pantalla
   display.clearDisplay();
   display.setTextSize(1);
   display.setCursor(0, 0);
   display.print(F("Presione 2,3,5,6,8 o 9:"));
   display.display();
-
-  //teclado
-
 }
 
 void loop() {
 
+  //Leer teclado
   char key = keypad.getKey(); // Leer la tecla presionada
-
-if (key) { // Si se presiona una tecla
+  if (key) { // Si se presiona una tecla
     if (key >= '2' && key <= '9') {
       estado = key - '0'; // Convertir carácter a número
     } else {
@@ -193,7 +176,7 @@ if (key) { // Si se presiona una tecla
         }
       mostrarangulo = angulo;
       miServo.write(angulo);
-      delay(5);  // Ajustar la velocidad del movimiento del servo según sea necesario
+      delay(5);  // Ajustar la velocidad del movimiento del servo
     }
 
     if (estadoPulsadorH == LOW && estadoPulsadorA == HIGH) {
@@ -232,7 +215,7 @@ if (key) { // Si se presiona una tecla
   delay(20);
   }//fin giroscopio
 
-  //Bluetooth
+  //Iniciar Bluetooth
   if(estado == 5 && contador == 0){
     
     Dabble.begin("MyEsp32");
@@ -241,32 +224,32 @@ if (key) { // Si se presiona una tecla
     Serial.println("Begin");
   }
 
+  //Bluetooth
   if(estado == 5){
     textoestado = "Bluetooth";
     Serial.println("Bluetooth dabble");
-    Dabble.processInput(); //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.              //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.
+    Dabble.processInput(); 
     Controls.runServo1(23);
     bluenc=1;
     mostrarangulo = Controls.angleServo1;
   }
 
-  //detener el bluetooth
+  //Detener Bluetooth
   if(estado != 5 && bluenc == 1){
     Serial.println("Bluetooth stop");
     esp32ble.stop();
     bluenc = 0;
     contador = 0;
     miServo.attach(23);
-    //freeMemoryAllocated(); revisar
   }//fin bluetooth
 
-    //Wifi
-    //comenzar a conectar
+    //Wi-Fi
+    //Iniciar Wi-Fi
     if(estado == 6 && contador1 == 0){
       textoestado = "Wi-Fi";
-    WiFi.begin(ssid, password);  // Conéctate a la red Wi-Fi
+    WiFi.begin(ssid, password);
 
-    // Espera hasta que esté conectado
+    // Esperar hasta que se establezca la conexión
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
@@ -275,13 +258,12 @@ if (key) { // Si se presiona una tecla
     Serial.println("\nConectado a la red Wi-Fi");
     Serial.print("Dirección IP: ");
     Serial.println(WiFi.localIP());  // Imprime la IP local asignada al ESP
-    //falta imprimir esto en la pantalla
 
     server.begin();  // Comienza el servidor
     contador1=1; //se encendio
   } 
-  //Mantener wifi
-
+  
+  //Mantener Wi-Fi
   if(contador1 == 1 && estado == 6){
     
     WiFiClient client = server.available();  // Verifica si hay un cliente conectado.
@@ -400,7 +382,7 @@ if (key) { // Si se presiona una tecla
     delay(100);
   }
 
-  //todo apagado
+  //Todo apagado
   if(estado == 9){
     textoestado = "Todo apagado";
     miServo.write(0);
